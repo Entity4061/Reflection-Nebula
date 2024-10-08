@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Emission Nebula Particle System</title>
+    <title>Reflection Nebula Particle System</title>
     <style>
         body { margin: 0; }
         canvas { display: block; }
@@ -41,86 +41,65 @@
         directionalLight.position.set(5, 10, 7.5);
         scene.add(directionalLight);
 
-        // Starry sky using glowing spheres
-        const starGeometry = new THREE.SphereGeometry(0.5, 16, 16);
-        const starMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
-        const starCount = 1000;
-
-        for (let i = 0; i < starCount; i++) {
-            const star = new THREE.Mesh(starGeometry, starMaterial);
-            star.position.set(
-                (Math.random() - 0.5) * 1000,
-                (Math.random() - 0.5) * 1000,
-                (Math.random() - 0.5) * 1000
-            );
-            scene.add(star);
-        }
-
-        // Particle system for emission nebula
-        const particleCount = 40000;
-        const particles = new THREE.BufferGeometry();
-        const positions = new Float32Array(particleCount * 3);
-        const colors = new Float32Array(particleCount * 3);
-        const sizes = new Float32Array(particleCount);
-
-        // Define color stops based on the provided image
-        const colorStops = [
-            new THREE.Color(0xff0000), // Red
-            new THREE.Color(0xff7f00), // Orange
-            new THREE.Color(0xffff00), // Yellow
-            new THREE.Color(0x00ff00), // Green
-            new THREE.Color(0x0000ff)  // Blue
-        ];
-
-        function blendColors(color1, color2, ratio) {
-            const r = color1.r * (1 - ratio) + color2.r * ratio;
-            const g = color1.g * (1 - ratio) + color2.g * ratio;
-            const b = color1.b * (1 - ratio) + color2.b * ratio;
-            return new THREE.Color(r, g, b);
-        }
-
-        for (let i = 0; i < particleCount; i++) {
-            const angle = Math.random() * 2 * Math.PI;
-            const distance = Math.random() * 200;
-            const height = (Math.random() - 0.5) * 200;
-
-            // Adjust positions to create a shape similar to the provided nebula image
-            positions[i * 3] = distance * Math.cos(angle) * 0.5;
-            positions[i * 3 + 1] = height * 0.5;
-            positions[i * 3 + 2] = distance * Math.sin(angle);
-
-            const ratio = i / particleCount;
-            const colorIndex = Math.floor(ratio * (colorStops.length - 1));
-            const colorRatio = (ratio * (colorStops.length - 1)) % 1;
-            const blendedColor = blendColors(colorStops[colorIndex], colorStops[colorIndex + 1], colorRatio);
-
-            colors[i * 3] = blendedColor.r;
-            colors[i * 3 + 1] = blendedColor.g;
-            colors[i * 3 + 2] = blendedColor.b;
-
-            sizes[i] = Math.random() * 1.5;
-        }
-
-        particles.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-        particles.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-        particles.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
-
-        // Load a texture for the particles
+        // Load the nebula texture
         const textureLoader = new THREE.TextureLoader();
-        const particleTexture = textureLoader.load('https://threejs.org/examples/textures/sprites/disc.png');
+        const nebulaTexture = textureLoader.load('https://upload.wikimedia.org/wikipedia/commons/3/32/Reflection.nebula.arp.750pix.jpg', function(texture) {
+            const canvas = document.createElement('canvas');
+            canvas.width = texture.image.width;
+            canvas.height = texture.image.height;
+            const context = canvas.getContext('2d');
+            context.drawImage(texture.image, 0, 0);
 
-        const particleMaterial = new THREE.PointsMaterial({
-            size: 1,
-            vertexColors: true,
-            transparent: true,
-            opacity: 0.9,
-            blending: THREE.AdditiveBlending,
-            depthTest: false,
-            map: particleTexture
+            const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+            const data = imageData.data;
+
+            const particleCount = 40000;
+            const particles = new THREE.BufferGeometry();
+            const positions = new Float32Array(particleCount * 3);
+            const colors = new Float32Array(particleCount * 3);
+            const sizes = new Float32Array(particleCount);
+
+            let index = 0;
+            for (let i = 0; i < data.length; i += 4) {
+                const brightness = (data[i] + data[i + 1] + data[i + 2]) / 3;
+                if (brightness > 50 && index < particleCount) {
+                    const x = (i / 4 % canvas.width) - canvas.width / 2;
+                    const y = canvas.height / 2 - Math.floor(i / 4 / canvas.width);
+                    const z = (Math.random() - 0.5) * 200;
+
+                    positions[index * 3] = x;
+                    positions[index * 3 + 1] = y;
+                    positions[index * 3 + 2] = z;
+
+                    colors[index * 3] = data[i] / 255;
+                    colors[index * 3 + 1] = data[i + 1] / 255;
+                    colors[index * 3 + 2] = data[i + 2] / 255;
+
+                    sizes[index] = Math.random() * 1.5;
+
+                    index++;
+                }
+            }
+
+            particles.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            particles.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+            particles.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+
+            const particleTexture = textureLoader.load('https://threejs.org/examples/textures/sprites/disc.png');
+
+            const particleMaterial = new THREE.PointsMaterial({
+                size: 1,
+                vertexColors: true,
+                transparent: true,
+                opacity: 0.9,
+                blending: THREE.AdditiveBlending,
+                depthTest: false,
+                map: particleTexture
+            });
+
+            const particleSystem = new THREE.Points(particles, particleMaterial);
+            scene.add(particleSystem);
         });
-
-        const particleSystem = new THREE.Points(particles, particleMaterial);
-        scene.add(particleSystem);
 
         camera.position.z = 200;
 
@@ -142,8 +121,6 @@
         function animate() {
             requestAnimationFrame(animate);
 
-            particleSystem.rotation.y += 0.001;
-            particleSystem.rotation.x += 0.0005;
             composer.render();
         }
         animate();
