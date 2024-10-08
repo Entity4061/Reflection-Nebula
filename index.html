@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reflection Nebula Particle System</title>
+    <style>
+        body { margin: 0; }
+        canvas { display: block; }
+        body {
+            background: radial-gradient(circle at center, #000000, #1a1a1a, #333333, #4d4d4d, #666666);
+        }
+    </style>
+</head>
+<body>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/EffectComposer.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/RenderPass.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/CopyShader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/FXAAShader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/LuminosityHighPassShader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/ShaderPass.js"></script>
+    <script>
+        // Scene setup
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        // Controls
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+
+        // Lighting
+        const ambientLight = new THREE.AmbientLight(0x404040, 2);
+        scene.add(ambientLight);
+
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+        directionalLight.position.set(5, 10, 7.5);
+        scene.add(directionalLight);
+
+        // Starry sky using glowing spheres
+        const starGeometry = new THREE.SphereGeometry(0.5, 16, 16);
+        const starMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
+        const starCount = 1000;
+
+        for (let i = 0; i < starCount; i++) {
+            const star = new THREE.Mesh(starGeometry, starMaterial);
+            star.position.set(
+                (Math.random() - 0.5) * 1000,
+                (Math.random() - 0.5) * 1000,
+                (Math.random() - 0.5) * 1000
+            );
+            scene.add(star);
+        }
+
+        // Particle system for reflection nebula
+        const particleCount = 40000;
+        const particles = new THREE.BufferGeometry();
+        const positions = new Float32Array(particleCount * 3);
+        const colors = new Float32Array(particleCount * 3);
+        const sizes = new Float32Array(particleCount);
+
+        const colorStops = [
+            new THREE.Color(0x87CEEB), // Light Blue
+            new THREE.Color(0x4682B4), // Steel Blue
+            new THREE.Color(0x1E90FF), // Dodger Blue
+            new THREE.Color(0x0000FF), // Blue
+            new THREE.Color(0xFFFFFF)  // White
+        ];
+
+        function blendColors(color1, color2, ratio) {
+            const r = color1.r * (1 - ratio) + color2.r * ratio;
+            const g = color1.g * (1 - ratio) + color2.g * ratio;
+            const b = color1.b * (1 - ratio) + color2.b * ratio;
+            return new THREE.Color(r, g, b);
+        }
+
+        for (let i = 0; i < particleCount; i++) {
+            const angle = Math.random() * 2 * Math.PI;
+            const distance = Math.random() * 200;
+            const height = (Math.random() - 0.5) * 200;
+
+            positions[i * 3] = distance * Math.cos(angle);
+            positions[i * 3 + 1] = height;
+            positions[i * 3 + 2] = distance * Math.sin(angle);
+
+            const ratio = i / particleCount;
+            const colorIndex = Math.floor(ratio * (colorStops.length - 1));
+            const colorRatio = (ratio * (colorStops.length - 1)) % 1;
+            const blendedColor = blendColors(colorStops[colorIndex], colorStops[colorIndex + 1], colorRatio);
+
+            colors[i * 3] = blendedColor.r;
+            colors[i * 3 + 1] = blendedColor.g;
+            colors[i * 3 + 2] = blendedColor.b;
+
+            sizes[i] = Math.random() * 1.5;
+        }
+
+        particles.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        particles.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+        particles.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+
+        // Load a texture for the particles
+        const textureLoader = new THREE.TextureLoader();
+        const particleTexture = textureLoader.load('https://threejs.org/examples/textures/sprites/disc.png');
+
+        const particleMaterial = new THREE.PointsMaterial({
+            size: 1,
+            vertexColors: true,
+            transparent: true,
+            opacity: 0.9,
+            blending: THREE.AdditiveBlending,
+            depthTest: false,
+            map: particleTexture
+        });
+
+        const particleSystem = new THREE.Points(particles, particleMaterial);
+        scene.add(particleSystem);
+
+        camera.position.z = 200;
+
+        // Post-processing
+        const composer = new THREE.EffectComposer(renderer);
+        composer.addPass(new THREE.RenderPass(scene, camera));
+
+        const bloomPass = new THREE.UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1.0, 0.4, 0.85);
+        bloomPass.threshold = 0;
+        bloomPass.strength = 1.0;
+        bloomPass.radius = 0;
+        composer.addPass(bloomPass);
+
+        const fxaaPass = new THREE.ShaderPass(THREE.FXAAShader);
+        fxaaPass.uniforms['resolution'].value.set(1 / window.innerWidth, 1 / window.innerHeight);
+        composer.addPass(fxaaPass);
+
+        // Animation loop
+        function animate() {
+            requestAnimationFrame(animate);
+
+            particleSystem.rotation.y += 0.001;
+            particleSystem.rotation.x += 0.0005;
+            composer.render();
+        }
+        animate();
+    </script>
+</body>
+</html>
