@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Reflection Nebula Particle System</title>
+    <title>Emission Nebula Particle System</title>
     <style>
         body { margin: 0; }
         canvas { display: block; }
@@ -56,19 +56,20 @@
             scene.add(star);
         }
 
-        // Particle system for reflection nebula
+        // Particle system for emission nebula
         const particleCount = 40000;
         const particles = new THREE.BufferGeometry();
         const positions = new Float32Array(particleCount * 3);
         const colors = new Float32Array(particleCount * 3);
         const sizes = new Float32Array(particleCount);
 
+        // Define color stops based on the provided image
         const colorStops = [
-            new THREE.Color(0x87CEEB), // Light Blue
-            new THREE.Color(0x4682B4), // Steel Blue
-            new THREE.Color(0x1E90FF), // Dodger Blue
-            new THREE.Color(0x0000FF), // Blue
-            new THREE.Color(0xFFFFFF)  // White
+            new THREE.Color(0xff0000), // Red
+            new THREE.Color(0xff7f00), // Orange
+            new THREE.Color(0xffff00), // Yellow
+            new THREE.Color(0x00ff00), // Green
+            new THREE.Color(0x0000ff)  // Blue
         ];
 
         function blendColors(color1, color2, ratio) {
@@ -83,17 +84,10 @@
             const distance = Math.random() * 200;
             const height = (Math.random() - 0.5) * 200;
 
-            // Adjust positions to create a nebula-like shape
-            const x = distance * Math.cos(angle);
-            const y = height;
-            const z = distance * Math.sin(angle);
-
-            // Apply a noise function to create a more organic shape
-            const noise = (Math.sin(x * 0.1) + Math.sin(y * 0.1) + Math.sin(z * 0.1)) * 10;
-
-            positions[i * 3] = x + noise;
-            positions[i * 3 + 1] = y + noise;
-            positions[i * 3 + 2] = z + noise;
+            // Adjust positions to create a shape similar to the provided nebula image
+            positions[i * 3] = distance * Math.cos(angle) * 0.5;
+            positions[i * 3 + 1] = height * 0.5;
+            positions[i * 3 + 2] = distance * Math.sin(angle);
 
             const ratio = i / particleCount;
             const colorIndex = Math.floor(ratio * (colorStops.length - 1));
