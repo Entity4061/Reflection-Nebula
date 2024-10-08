@@ -83,9 +83,17 @@
             const distance = Math.random() * 200;
             const height = (Math.random() - 0.5) * 200;
 
-            positions[i * 3] = distance * Math.cos(angle);
-            positions[i * 3 + 1] = height;
-            positions[i * 3 + 2] = distance * Math.sin(angle);
+            // Adjust positions to create a nebula-like shape
+            const x = distance * Math.cos(angle);
+            const y = height;
+            const z = distance * Math.sin(angle);
+
+            // Apply a noise function to create a more organic shape
+            const noise = (Math.sin(x * 0.1) + Math.sin(y * 0.1) + Math.sin(z * 0.1)) * 10;
+
+            positions[i * 3] = x + noise;
+            positions[i * 3 + 1] = y + noise;
+            positions[i * 3 + 2] = z + noise;
 
             const ratio = i / particleCount;
             const colorIndex = Math.floor(ratio * (colorStops.length - 1));
